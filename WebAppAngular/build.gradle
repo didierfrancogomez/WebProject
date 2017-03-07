@@ -1,0 +1,62 @@
+apply plugin: 'war'
+
+[ compileJava, compileTestJava ]*.options*.encoding = 'UTF-8'
+
+repositories {
+	mavenCentral()
+}
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+dependencies {
+	providedCompile 'org.jboss.spec:jboss-javaee-6.0:3.0.3.Final'
+	providedCompile 'log4j:log4j:1.2.17'
+	providedCompile 'com.fasterxml.jackson.core:jackson-annotations:2.6.4'
+	testCompile 'junit:junit:4.11'
+	testCompile 'org.mockito:mockito-all:1.9.5'
+	testCompile 'org.powermock:powermock-api-mockito:1.6.3'
+	testCompile 'org.powermock:powermock-module-junit4:1.6.3'
+}
+
+war {
+	archiveName = "${baseName}.${extension}"
+}
+
+task deploy(dependsOn: 'build' , type: Copy) {
+	def target = "${project.name}.war"
+	def SERVER_HOME = System.getenv('JBOSS_LOCAL_HOME')
+	
+	println "Iniciando Despliegue"
+	println "Usando Servidor: ${SERVER_HOME}"
+	
+	from('build/libs/') {
+		include '*.war'
+	}
+	
+	into "${SERVER_HOME}/standalone/deployments/"
+	
+	def deployed = new File("${SERVER_HOME}/standalone/deployments/${target}.deployed");
+	def failed = new File("${SERVER_HOME}/standalone/deployments/${target}.failed");
+	
+	doFirst {
+		println "Eliminando Despliegues Anteriores"
+		if (deployed.exists()) { deployed.delete() }
+		if (failed.exists()) { failed.delete() }
+	}
+	
+	doLast {
+		println "Ejecutando Despliegue"
+		
+		def success = false
+		while (true) {
+			if (deployed.exists()) { success = true; break }
+			if (failed.exists()) { break }
+			sleep(500);
+		}
+		
+		if (!success) { throw new RuntimeException("Despligue Fallido") }
+		
+		println "Despliegue Exitoso"
+	}
+}
